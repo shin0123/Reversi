@@ -116,7 +116,7 @@
 		var result;
 		
 		result = board.play(x, y, 0);
-		if (result[0] == 0)
+		if (result[0] == 0 || result[0] == 1)
 			refresh(scene);
 		if (board.isCurrentPlayerAI())
 			aiPlay(scene);
