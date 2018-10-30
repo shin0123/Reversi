@@ -1,0 +1,159 @@
+﻿<!doctype html> 
+<html lang="en"> 
+<head> 
+    <meta charset="UTF-8" />
+    <title>Reversi</title>
+    <script src="phaser-3.15.1/dist/phaser.min.js"></script>
+	<script src="/socket.io/socket.io.js"></script>
+	<!-- <script src="reversi/board.js"></script> -->
+    <!--<script src="//cdn.jsdelivr.net/npm/phaser@3.11.0/dist/phaser.js"></script>-->
+    <style type="text/css">
+        body {
+            margin: 0;
+        }
+    </style>
+</head>
+<body>
+
+<script type="module" >
+
+	import { board, white, black, nocolor } from './reversi/board.js';
+	
+    const boardWidth = 724;
+    const squarewidth = 90;
+	const boardHeight = 724;
+    const initialX = 47;
+    const scale = 0.3;
+
+    var config = {
+        type: Phaser.AUTO,
+        width: boardWidth,
+        height: boardHeight,
+        scene: {
+            preload: preload,
+            create: create,
+            update: update
+        }
+    };
+	
+	var socket = io();
+
+    var player = white;
+	var playerSet = false;
+
+    var game = new Phaser.Game(config);
+	
+	var allBlack = [];
+	var allWhite = [];
+	
+	const whitepiece = 'whitepiece';
+	const blackpiece = 'blackpiece';
+    //init();
+
+    function init(that)
+    {
+        board.init();
+		var piece;
+		for (var i = 0; i < 8; i++)
+		{
+			allWhite[i] = [];
+			allBlack[i] = [];
+			for (var j = 0; j < 8; j++)
+			{
+				piece = that.add.image(initialX + i * squarewidth, boardHeight - boardWidth + initialX + j * squarewidth, whitepiece);
+				piece.setScale(scale);
+				allWhite[i][j] = piece;
+				piece = that.add.image(initialX + i * squarewidth, boardHeight - boardWidth + initialX + j * squarewidth, blackpiece);
+				piece.setScale(scale);
+				allBlack[i][j] = piece;
+			}
+		}
+		refresh(that);
+    }
+
+    function preload ()
+    {
+        this.load.image('board', 'reversi/reversi.gif');
+        this.load.image(whitepiece, 'reversi/white.png');
+        this.load.image(blackpiece, 'reversi/black.png');
+		
+		socket.on('play', function(msg){
+			console.log('play:' + msg);
+			opponentplay(msg.x, msg.y, this);
+		});
+		
+		socket.on('setplayer', function(msg){
+			console.log('setplayer: ' + msg);
+			player = msg;
+			playerSet = true;
+		});
+    }
+
+    function create ()
+    {
+        var bg = this.add.image(boardWidth / 2, boardHeight - boardWidth / 2 , 'board');
+        bg.setInteractive();
+        bg.addListener('pointerdown', click);
+        init(this);
+    }
+
+    function click(e)
+    {
+		if (board.isCurrentPlayerAI() || !playerSet)
+			return;
+        var x = Math.floor(e.downX / squarewidth);
+        var rx = e.downX % squarewidth;
+        var y = Math.floor((e.downY - (boardHeight - boardWidth)) / squarewidth);
+        var ry = e.downY % squarewidth;
+		if ((player == board.currentPlayer) && (x >= 0 && x <= 7) && (rx >= 3 || rx == 0) && (y >= 0 && y <= 7) && (ry >= 2 || ry == 0))
+		{
+			play(x, y, this.scene);
+		}
+    }
+	
+	function play(x, y, scene)
+	{
+		var result;
+		
+		result = board.play(x, y, 0);
+		if (result[0] == 0)
+			refresh(scene);
+		if (board.isCurrentPlayerAI())
+			aiPlay(scene);
+		else
+			socket.emit('play', {x:x, y:y});
+	}
+	
+	function opponentplay(x, y, scene)
+	{
+		var result = board.play(x, y, 0);
+		if (result[0] == 0)
+			refresh(scene);
+	}
+	
+	function aiPlay(scene)
+	{
+		setTimeout(function(b, r, s){ b.play(-2, -2, 1); r(s);}, 100, board, refresh, scene);
+	}
+
+    function refresh(scene)
+    {
+        for (var i = 0; i < 8; i++)
+		{
+			for (var j = 0; j < 8; j++)
+			{
+				allWhite[i][j].visible = board.positions[i][j] == white;
+				allBlack[i][j].visible = board.positions[i][j] == black;
+			}
+		}
+    }
+
+    function update ()
+    {
+        
+    }
+
+</script>
+
+</body>
+</html>
